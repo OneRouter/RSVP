@@ -61,7 +61,7 @@ export type RSVPImperativeApi = {
 ```
 
 | Name               | Type                     | Description                                     |
-| :----------------- | :----------------------- | :---------------------------------------------- |        |
+| :----------------- | :----------------------- | :---------------------------------------------- |
 | `renderItem`    | `RenderItemType`      | (Required) Function to be called to render each page.          |
 | `onPageChange`     | `(page: number) => void` | Callback invoked when the current page changes. |
 | `style`            | `AnyStyle`               | Style of the pager container.                   |
