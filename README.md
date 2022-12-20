@@ -8,7 +8,7 @@ A swipeable horizontal and vertical pager component.
 
 Fully native interactions powered by [Reanimated 2](https://github.com/software-mansion/react-native-reanimated) and [React Native Gesture Handler](https://github.com/software-mansion/react-native-gesture-handler). Optional freeze with [React Freeze](https://github.com/software-mansion/react-freeze)
 
-[RSVP demo](https://snack.expo.dev/@stereoplegic/2e8d4f)
+[RSVP demo](https://snack.expo.dev/@stereoplegic/rsvp)
 
 ## Install
 
@@ -98,7 +98,7 @@ export type RSVPImperativeApi = {
 | `decrementPage` | `(options: ImperativeApiOptions) => void`                | Go to previous page.       |
 | `setPage`       | `(index: number, options: ImperativeApiOptions) => void` | Go to page of given index. |
 
-### [Example](https://snack.expo.dev/@stereoplegic/2e8d4f)
+### [Example](https://snack.expo.dev/@stereoplegic/rsvp)
 
 ```typescript
 import './polyfills';

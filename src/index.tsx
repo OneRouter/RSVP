@@ -390,6 +390,7 @@ const PageWrapper = React.memo(
           animStyle,
           isActive && styles.activePage,
         ]}
+        collapsable={false}
       >
         <Freeze freeze={enableFreeze && !isActive}>
           {renderItem?.({
