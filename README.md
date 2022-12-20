@@ -61,9 +61,8 @@ export type RSVPImperativeApi = {
 ```
 
 | Name               | Type                     | Description                                     |
-| :----------------- | :----------------------- | :---------------------------------------------- |
-| `PageComponent`    | `PageComponentType`      | Component to be rendered as each page (either PageComponent OR renderPage must be defined, but not both — choose the version that suits your use case).          |
-| `renderPage`    | `PageComponentType`      | Function to be called to render each page.          |
+| :----------------- | :----------------------- | :---------------------------------------------- |        |
+| `renderItem`    | `RenderItemType`      | (Required) Function to be called to render each page.          |
 | `onPageChange`     | `(page: number) => void` | Callback invoked when the current page changes. |
 | `style`            | `AnyStyle`               | Style of the pager container.                   |
 | `pageWrapperStyle` | `AnyStyle`               | Style of the container that wraps each page.    |
@@ -77,7 +76,7 @@ export type RSVPImperativeApi = {
 | `animationConfig`            | `Partial<WithSpringConfig>`               | Customizes paging animations.                   |
 | `vertical`            | `boolean`               | Sets page gesture to the vertical axis.                   |
 | `flingVelocity`            | `number`               | Determines sensitivity of a page-turning "fling" at the end of the gesture.                   |
-| `preset`            | `Preset`               | Uses a pre-configured page interpolator.                   |
+| `data`            | `any[]`               | (Required) Array from which `renderItem` gets its data (on a per-item basis)                   |
 
 ### Imperative API
 
