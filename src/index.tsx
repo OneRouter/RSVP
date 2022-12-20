@@ -4,43 +4,97 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { StyleProp, StyleSheet, ViewStyle } from "react-native";
+import { StyleSheet } from "react-native";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
+  interpolate,
+  runOnJS,
   withSpring,
   useDerivedValue,
   useAnimatedReaction,
-  runOnJS,
-  WithSpringConfig,
+  useAnimatedStyle,
+  useSharedValue,
 } from "react-native-reanimated";
-import {
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Freeze } from "react-freeze";
+
+import type { MemoExoticComponent } from "react";
+import type { StyleProp, ViewStyle } from "react-native";
+import type {
   ComposedGesture,
-  Gesture,
-  GestureDetector,
   GestureType,
+  GestureStateChangeEvent,
+  GestureUpdateEvent,
+  PanGestureHandlerEventPayload,
 } from "react-native-gesture-handler";
-import {
-  defaultPageInterpolator,
-  pageInterpolatorCube,
-  pageInterpolatorSlide,
-  pageInterpolatorStack,
-  pageInterpolatorTurnIn,
-} from "./pageInterpolators";
+import type { WithSpringConfig } from "react-native-reanimated";
 
-export enum Preset {
-  SLIDE = "slide",
-  CUBE = "cube",
-  STACK = "stack",
-  TURN_IN = "turn-in",
-}
-
-const PageInterpolators = {
-  [Preset.SLIDE]: pageInterpolatorSlide,
-  [Preset.CUBE]: pageInterpolatorCube,
-  [Preset.STACK]: pageInterpolatorStack,
-  [Preset.TURN_IN]: pageInterpolatorTurnIn,
+type PageProps = {
+  index: number;
+  focusAnim: Animated.DerivedValue<number>;
+  isActive: boolean;
+  pageWidthAnim: Animated.SharedValue<number>;
+  pageHeightAnim: Animated.SharedValue<number>;
+  pageAnim: Animated.SharedValue<number>;
 };
+export type RenderItemType = (props: PageProps) => JSX.Element | null;
+
+export type AnyStyle =
+  | StyleProp<ViewStyle>
+  | ReturnType<typeof useAnimatedStyle>;
+
+export type Props = {
+  vertical?: boolean;
+  // wrapAround?: boolean; // TODO: Fix wraparound animation
+  data: any[];
+  renderItem: RenderItemType | MemoExoticComponent<RenderItemType>;
+  pageCallbackNode?: Animated.SharedValue<number>;
+  onPageChange?: (page: number) => void;
+  pageBuffer?: number; // number of pages to render on either side of active page
+  style?: AnyStyle;
+  pageWrapperStyle?: AnyStyle;
+  simultaneousGestures?: (ComposedGesture | GestureType)[];
+  enableFreeze?: boolean;
+  gesturesDisabled?: boolean;
+  animationConfig?: Partial<WithSpringConfig>;
+  flingVelocity?: number;
+};
+export type ImperativeApiOptions = {
+  animated?: boolean;
+};
+
+export type RSVPImperativeApi = {
+  setPage: (index: number, options: ImperativeApiOptions) => void;
+  incrementPage: (options: ImperativeApiOptions) => void;
+  decrementPage: (options: ImperativeApiOptions) => void;
+};
+
+function slide({
+  focusAnim,
+  pageWidth,
+  pageHeight,
+  vertical,
+}: PageInterpolatorParams): ReturnType<typeof useAnimatedStyle> {
+  "worklet";
+
+  const translateX = vertical
+    ? 0
+    : interpolate(
+        focusAnim.value,
+        [-1, 0, 1],
+        [-pageWidth.value, 0, pageWidth.value]
+      );
+  const translateY = vertical
+    ? interpolate(
+        focusAnim.value,
+        [-1, 0, 1],
+        [-pageHeight.value, 0, pageHeight.value]
+      )
+    : 0;
+
+  return {
+    transform: [{ translateX }, { translateY }],
+  };
+}
 
 export const DEFAULT_ANIMATION_CONFIG: WithSpringConfig = {
   damping: 20,
@@ -51,84 +105,39 @@ export const DEFAULT_ANIMATION_CONFIG: WithSpringConfig = {
   restDisplacementThreshold: 0.2,
 };
 
-type PageProps = {
-  index: number;
-  focusAnim: Animated.DerivedValue<number>;
-  isActive: boolean;
-  pageWidthAnim: Animated.SharedValue<number>;
-  pageHeightAnim: Animated.SharedValue<number>;
-  pageAnim: Animated.SharedValue<number>;
-};
-type PageComponentType = (props: PageProps) => JSX.Element | null;
-
-type AnyStyle = StyleProp<ViewStyle> | ReturnType<typeof useAnimatedStyle>;
-
-type Props = {
-  vertical?: boolean;
-  PageComponent?:
-    | PageComponentType
-    | React.MemoExoticComponent<PageComponentType>;
-  renderPage?: PageComponentType;
-  pageCallbackNode?: Animated.SharedValue<number>;
-  onPageChange?: (page: number) => void;
-  pageBuffer?: number; // number of pages to render on either side of active page
-  style?: AnyStyle;
-  pageWrapperStyle?: AnyStyle;
-  pageInterpolator?: typeof defaultPageInterpolator;
-  minIndex?: number;
-  maxIndex?: number;
-  simultaneousGestures?: (ComposedGesture | GestureType)[];
-  gesturesDisabled?: boolean;
-  animationConfig?: Partial<WithSpringConfig>;
-  flingVelocity?: number;
-  preset?: Preset;
-};
-
-type ImperativeApiOptions = {
-  animated?: boolean;
-};
-
-export type InfinitePagerImperativeApi = {
-  setPage: (index: number, options: ImperativeApiOptions) => void;
-  incrementPage: (options: ImperativeApiOptions) => void;
-  decrementPage: (options: ImperativeApiOptions) => void;
-};
-
-function InfinitePager(
+function RSVP(
   {
     vertical = false,
-    PageComponent,
+    // wrapAround = false, // TODO: Fix wrapAround animation
+    data = [],
     pageCallbackNode,
     onPageChange,
     pageBuffer = 1,
     style,
     pageWrapperStyle,
-    minIndex = -Infinity,
-    maxIndex = Infinity,
     simultaneousGestures = [],
+    enableFreeze = false,
     gesturesDisabled,
     animationConfig = {},
-    renderPage,
-    flingVelocity = 500,
-    preset = Preset.SLIDE,
-    pageInterpolator = PageInterpolators[preset],
+    renderItem,
+    flingVelocity = 300,
   }: Props,
-  ref: React.ForwardedRef<InfinitePagerImperativeApi>
+  ref: React.ForwardedRef<RSVPImperativeApi>
 ) {
+  const minIndex = 0;
+  const maxIndex = data.length - 1;
   const pageWidth = useSharedValue(0);
   const pageHeight = useSharedValue(0);
   const pageSize = vertical ? pageHeight : pageWidth;
 
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const translate = vertical ? translateY : translateX;
+  const translate = useSharedValue(0);
 
   const [curIndex, setCurIndex] = useState(0);
   const pageAnimInternal = useSharedValue(0);
   const pageAnim = pageCallbackNode || pageAnimInternal;
 
-  const pageInterpolatorRef = useRef(pageInterpolator);
-  pageInterpolatorRef.current = pageInterpolator;
+  const slideRef = useRef(slide);
+  slideRef.current = slide;
 
   const curIndexRef = useRef(curIndex);
   curIndexRef.current = curIndex;
@@ -166,9 +175,18 @@ function InfinitePager(
     }),
     [setPage]
   );
-
-  const pageIndices = [...Array(pageBuffer * 2 + 1)].map((_, i) => {
-    const bufferIndex = i - pageBuffer;
+  const indexArray =
+    curIndex > minIndex && curIndex < maxIndex
+      ? [curIndex - 1, curIndex, curIndex + 1]
+      : curIndex === minIndex
+      ? // ? !wrapAround // TODO: Fix wrapAround animation
+        [curIndex, curIndex + 1]
+      : // : [maxIndex, curIndex, curIndex + 1]
+        // : wrapAround
+        // ? [curIndex - 1, curIndex, minIndex]
+        [curIndex - 1, curIndex];
+  const pageIndices = indexArray.map((_, i) => {
+    const bufferIndex = curIndex < maxIndex ? i - 1 : i;
     return curIndex - bufferIndex;
   });
 
@@ -197,38 +215,57 @@ function InfinitePager(
 
   const startTranslate = useSharedValue(0);
 
+  const onBegin = () => {
+    startTranslate.value = translate.value;
+  };
+  const onUpdate = (evt: GestureUpdateEvent<PanGestureHandlerEventPayload>) => {
+    const evtTranslate = vertical ? evt.translationY : evt.translationX;
+
+    const rawVal = startTranslate.value + evtTranslate;
+    const page = -rawVal / pageSize.value;
+    if (
+      page >= minIndex &&
+      page <= maxIndex
+      // || wrapAround
+    ) {
+      translate.value = rawVal;
+    }
+  };
+  const onEnd = (
+    evt: GestureStateChangeEvent<PanGestureHandlerEventPayload>
+  ) => {
+    const evtVelocity = vertical ? evt.velocityY : evt.velocityX;
+    const isFling = Math.abs(evtVelocity) > flingVelocity;
+    let velocityModifier = isFling ? pageSize.value / 2 : 0;
+    if (evtVelocity < 0) velocityModifier *= -1;
+    let page =
+      -1 * Math.round((translate.value + velocityModifier) / pageSize.value);
+    if (page < minIndex) {
+      // wrapAround ? page = maxIndex :
+      page = minIndex;
+    }
+    if (page > maxIndex) {
+      // wrapAround ? page = minIndex :
+      page = maxIndex;
+    }
+
+    const animCfg = Object.assign(
+      {},
+      DEFAULT_ANIMATION_CONFIG,
+      animCfgRef.current
+    );
+
+    translate.value = withSpring(-page * pageSize.value, animCfg);
+  };
   const panGesture = Gesture.Pan()
-    .onBegin(() => {
-      startTranslate.value = translate.value;
-    })
-    .onUpdate((evt) => {
-      const evtTranslate = vertical ? evt.translationY : evt.translationX;
-
-      const rawVal = startTranslate.value + evtTranslate;
-      const page = -rawVal / pageSize.value;
-      if (page >= minIndex && page <= maxIndex) {
-        translate.value = rawVal;
-      }
-    })
-    .onEnd((evt) => {
-      const evtVelocity = vertical ? evt.velocityY : evt.velocityX;
-      const isFling = Math.abs(evtVelocity) > flingVelocity;
-      let velocityModifier = isFling ? pageSize.value / 2 : 0;
-      if (evtVelocity < 0) velocityModifier *= -1;
-      let page =
-        -1 * Math.round((translate.value + velocityModifier) / pageSize.value);
-      if (page < minIndex) page = minIndex;
-      if (page > maxIndex) page = maxIndex;
-
-      const animCfg = Object.assign(
-        {},
-        DEFAULT_ANIMATION_CONFIG,
-        animCfgRef.current
-      );
-
-      translate.value = withSpring(-page * pageSize.value, animCfg);
-    })
+    .onBegin(onBegin)
+    .onUpdate(onUpdate)
+    .onEnd(onEnd)
     .enabled(!gesturesDisabled);
+
+  if (!data) {
+    throw new Error("RSVP's data prop is required");
+  }
 
   return (
     <GestureDetector
@@ -248,13 +285,13 @@ function InfinitePager(
               vertical={vertical}
               pageAnim={pageAnim}
               index={pageIndex}
+              enableFreeze={enableFreeze}
               pageWidth={pageWidth}
               pageHeight={pageHeight}
               isActive={pageIndex === curIndex}
-              PageComponent={PageComponent}
-              renderPage={renderPage}
+              renderItem={renderItem}
               style={pageWrapperStyle}
-              pageInterpolatorRef={pageInterpolatorRef}
+              slideRef={slideRef}
               pageBuffer={pageBuffer}
             />
           );
@@ -264,17 +301,19 @@ function InfinitePager(
   );
 }
 
+export default React.memo(React.forwardRef(RSVP));
+
 type PageWrapperProps = {
   vertical: boolean;
   pageAnim: Animated.SharedValue<number>;
   index: number;
+  enableFreeze: boolean;
   pageWidth: Animated.SharedValue<number>;
   pageHeight: Animated.SharedValue<number>;
-  PageComponent?: PageComponentType;
-  renderPage?: PageComponentType;
+  renderItem?: RenderItemType;
   isActive: boolean;
   style?: AnyStyle;
-  pageInterpolatorRef: React.MutableRefObject<typeof defaultPageInterpolator>;
+  slideRef: React.MutableRefObject<typeof slide>;
   pageBuffer: number;
 };
 
@@ -291,22 +330,22 @@ export type PageInterpolatorParams = {
 const PageWrapper = React.memo(
   ({
     index,
+    enableFreeze,
     pageAnim,
     pageWidth,
     pageHeight,
     vertical,
-    PageComponent,
-    renderPage,
+    renderItem,
     isActive,
     style,
-    pageInterpolatorRef,
+    slideRef,
     pageBuffer,
   }: PageWrapperProps) => {
     const pageSize = vertical ? pageHeight : pageWidth;
 
     const translation = useDerivedValue(() => {
-      const translateX = (index - pageAnim.value) * pageSize.value;
-      return translateX;
+      const translate = (index - pageAnim.value) * pageSize.value;
+      return translate;
     }, []);
 
     const focusAnim = useDerivedValue(() => {
@@ -320,7 +359,7 @@ const PageWrapper = React.memo(
       const isInactivePageBeforeInit = index !== 0 && !pageSize.value;
       const _pageWidth = isInactivePageBeforeInit ? focusAnim : pageWidth;
       const _pageHeight = isInactivePageBeforeInit ? focusAnim : pageHeight;
-      return pageInterpolatorRef.current({
+      return slideRef.current({
         focusAnim,
         pageAnim,
         pageWidth: _pageWidth,
@@ -339,14 +378,8 @@ const PageWrapper = React.memo(
       pageBuffer,
     ]);
 
-    if (PageComponent && renderPage) {
-      console.warn(
-        "PageComponent and renderPage both defined, defaulting to PageComponent"
-      );
-    }
-
-    if (!PageComponent && !renderPage) {
-      throw new Error("Either PageComponent or renderPage must be defined.");
+    if (!renderItem) {
+      throw new Error("RSVP's renderItem prop is required");
     }
 
     return (
@@ -358,31 +391,20 @@ const PageWrapper = React.memo(
           isActive && styles.activePage,
         ]}
       >
-        {PageComponent ? (
-          <PageComponent
-            index={index}
-            isActive={isActive}
-            focusAnim={focusAnim}
-            pageWidthAnim={pageWidth}
-            pageHeightAnim={pageHeight}
-            pageAnim={pageAnim}
-          />
-        ) : (
-          renderPage?.({
+        <Freeze freeze={enableFreeze && !isActive}>
+          {renderItem?.({
             index,
             isActive,
             focusAnim,
             pageWidthAnim: pageWidth,
             pageHeightAnim: pageHeight,
             pageAnim,
-          })
-        )}
+          })}
+        </Freeze>
       </Animated.View>
     );
   }
 );
-
-export default React.memo(React.forwardRef(InfinitePager));
 
 const styles = StyleSheet.create({
   pageWrapper: {

@@ -1,15 +1,20 @@
-# React Native Infinite Pager
+# RSVP
 
-An infinitely-swipeable horizontal and vertical pager component.<br />
-Fully native interactions powered by [Reanimated 2](https://github.com/kmagiera/react-native-reanimated) and [React Native Gesture Handler](https://github.com/kmagiera/react-native-gesture-handler)
+## Reanimated Swipeable ViewPager
 
-![InfinitePager demo](https://i.imgur.com/5lIxuQX.gif)
+Derived from [React Native Infinite Pager](https://github.com/computerjazz/react-native-infinite-pager)
+
+A swipeable horizontal and vertical pager component.
+
+Fully native interactions powered by [Reanimated 2](https://github.com/software-mansion/react-native-reanimated) and [React Native Gesture Handler](https://github.com/software-mansion/react-native-gesture-handler). Optional freeze with [React Freeze](https://github.com/software-mansion/react-freeze)
+
+[RSVP demo](https://snack.expo.dev/@stereoplegic/2e8d4f)
 
 ## Install
 
 1. Follow installation instructions for [reanimated](https://github.com/kmagiera/react-native-reanimated) and [react-native-gesture-handler](https://github.com/kmagiera/react-native-gesture-handler)
-2. `npm install` or `yarn add` `react-native-infinite-pager`
-3. `import InfinitePager from 'react-native-infinite-pager'`
+2. `npm install` or `yarn add` `@onerouter/rsvp`
+3. `import RSVP from '@onerouter/rsvp'`
 
 ### Props
 
@@ -19,32 +24,39 @@ type PageProps = {
   focusAnim: Animated.DerivedValue<number>;
   isActive: boolean;
   pageWidthAnim: Animated.SharedValue<number>;
+  pageHeightAnim: Animated.SharedValue<number>;
   pageAnim: Animated.SharedValue<number>;
-}
+};
+export type RenderItemType = (props: PageProps) => JSX.Element | null;
 
-type PageComponentType = (props: PageProps) => JSX.Element | null;
+export type AnyStyle =
+  | StyleProp<ViewStyle>
+  | ReturnType<typeof useAnimatedStyle>;
 
-type AnyStyle = StyleProp<ViewStyle> | ReturnType<typeof useAnimatedStyle>;
-
-type Props = {
-  PageComponent?:
-    | PageComponentType
-    | React.MemoExoticComponent<PageComponentType>;
-  renderPage?: PageComponentType
+export type Props = {
+  vertical?: boolean;
+  // wrapAround?: boolean; // TODO: Fix wraparound animation
+  data: any[];
+  renderItem: RenderItemType | MemoExoticComponent<RenderItemType>;
   pageCallbackNode?: Animated.SharedValue<number>;
   onPageChange?: (page: number) => void;
-  pageBuffer?: number; 
+  pageBuffer?: number; // number of pages to render on either side of active page
   style?: AnyStyle;
   pageWrapperStyle?: AnyStyle;
-  pageInterpolator?: typeof defaultPageInterpolator;
-  minIndex?: number;
-  maxIndex?: number;
   simultaneousGestures?: (ComposedGesture | GestureType)[];
+  enableFreeze?: boolean;
   gesturesDisabled?: boolean;
   animationConfig?: Partial<WithSpringConfig>;
-  vertical?: boolean;
   flingVelocity?: number;
-  preset?: Preset;
+};
+export type ImperativeApiOptions = {
+  animated?: boolean;
+};
+
+export type RSVPImperativeApi = {
+  setPage: (index: number, options: ImperativeApiOptions) => void;
+  incrementPage: (options: ImperativeApiOptions) => void;
+  decrementPage: (options: ImperativeApiOptions) => void;
 };
 ```
 
@@ -67,15 +79,14 @@ type Props = {
 | `flingVelocity`            | `number`               | Determines sensitivity of a page-turning "fling" at the end of the gesture.                   |
 | `preset`            | `Preset`               | Uses a pre-configured page interpolator.                   |
 
-
-### Imperative Api
+### Imperative API
 
 ```typescript
 type ImperativeApiOptions = {
   animated?: boolean;
 };
 
-export type InfinitePagerImperativeApi = {
+export type RSVPImperativeApi = {
   setPage: (index: number, options: ImperativeApiOptions) => void;
   incrementPage: (options: ImperativeApiOptions) => void;
   decrementPage: (options: ImperativeApiOptions) => void;
@@ -88,16 +99,16 @@ export type InfinitePagerImperativeApi = {
 | `decrementPage` | `(options: ImperativeApiOptions) => void`                | Go to previous page.       |
 | `setPage`       | `(index: number, options: ImperativeApiOptions) => void` | Go to page of given index. |
 
-### Example
-
-https://snack.expo.dev/@computerjazz/infinite-pager
+### [Example](https://snack.expo.dev/@stereoplegic/2e8d4f)
 
 ```typescript
-import React from "react";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
-import InfinitePager from "react-native-infinite-pager";
-
-const NUM_ITEMS = 50;
+import './polyfills';
+import React, { useRef, useCallback } from 'react';
+import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue } from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import RSVP, { RSVPImperativeApi } from './Pager';
+const NUM_ITEMS = 15;
 
 function getColor(i: number) {
   const multiplier = 255 / (NUM_ITEMS - 1);
@@ -105,32 +116,99 @@ function getColor(i: number) {
   return `rgb(${colorVal}, ${Math.abs(128 - colorVal)}, ${255 - colorVal})`;
 }
 
+const data = [0, 1, 2, 3, 4, 5];
+
 const Page = ({ index }: { index: number }) => {
   return (
     <View
       style={[
         styles.flex,
         {
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: getColor(index),
+          alignItems: 'center',
+          justifyContent: 'center',
         },
-      ]}
-    >
-      <Text style={{ color: "white", fontSize: 80 }}>{index}</Text>
+      ]}>
+      <Text style={{ color: 'white', fontSize: 80, fontWeight: 'bold' }}>
+        {index}
+      </Text>
     </View>
   );
 };
 
 export default function App() {
+  const pagerRef = useRef<RSVPImperativeApi>(null);
+  const pageIndex = useSharedValue(0);
+  const renderItem = useCallback(({ index }: { index: number }) => {
+    return (
+      <Animated.View
+        style={[
+          styles.flex,
+          {
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: getColor(index),
+          },
+        ]}>
+        <Text style={{ color: 'white', fontSize: 80, fontWeight: 'bold' }}>
+          {index < 0 ? data.length - 1 : index > data.length - 1 ? 0 : index}
+        </Text>
+      </Animated.View>
+    );
+  }, []);
   return (
-    <View style={styles.flex}>
-      <InfinitePager
-        PageComponent={Page}
+    <GestureHandlerRootView
+      style={[styles.flex, { backgroundColor: 'seashell' }]}>
+      <RSVP
+        data={data}
+        // wrapAround
+        onPageChange={(page) => (pageIndex.value = page)}
+        key={`infinite-pager-${pagerRef.current}`}
+        ref={pagerRef}
+        renderItem={renderItem}
         style={styles.flex}
         pageWrapperStyle={styles.flex}
+        pageBuffer={1}
       />
-    </View>
+
+      <View style={{ position: 'absolute', bottom: 44, left: 0, right: 0 }}>
+        <Text
+          style={{
+            alignSelf: 'center',
+            fontWeight: 'bold',
+            color: 'rgba(0,0,0,0.33)',
+            padding: 5,
+            borderRadius: 3,
+            fontSize: 24,
+          }}>
+          Pagination
+        </Text>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            marginTop: 12,
+          }}>
+          {data.map((item, index) => {
+            return (
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderColor: 'rgba(0,0,0,0.33)',
+                  borderWidth: StyleSheet.hairlineWidth,
+                }}
+                onPress={() => {
+                  pagerRef?.current?.setPage(index, { animated: true });
+                }}>
+                <Text style={{ color: 'white' }}>{index}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
