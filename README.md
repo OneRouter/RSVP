@@ -101,12 +101,13 @@ export type RSVPImperativeApi = {
 ### [Example](https://snack.expo.dev/@stereoplegic/rsvp)
 
 ```typescript
-import './polyfills';
 import React, { useRef, useCallback } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import RSVP, { RSVPImperativeApi } from './Pager';
+// import RSVP, { RSVPImperativeApi } from './Pager';
+import RSVP, { RSVPImperativeApi } from '@onerouter/rsvp';
+
 const NUM_ITEMS = 15;
 
 function getColor(i: number) {
@@ -159,7 +160,8 @@ export default function App() {
       style={[styles.flex, { backgroundColor: 'seashell' }]}>
       <RSVP
         data={data}
-        // wrapAround
+        enableFreeze={false} // set backgroundColor in RSVP style prop if enabling freeze for smoother transition
+        // wrapAround // TODO: fix wrapAround animation
         onPageChange={(page) => (pageIndex.value = page)}
         key={`infinite-pager-${pagerRef.current}`}
         ref={pagerRef}
