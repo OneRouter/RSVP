@@ -1,10 +1,10 @@
 {
   "name": "@onerouter/rsvp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Reanimated Swipeable ViewPager. Renders limited by buffer and React Freeze",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
-  "react-native": "src/index.tsx",
+  "react-native": "lib/module/index",
   "types": "lib/typescript/index.d.ts",
   "author": "Science/Art/Magic",
   "license": "MIT",
