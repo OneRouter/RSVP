@@ -120,7 +120,7 @@ function RSVP(
     gesturesDisabled,
     animationConfig = {},
     renderItem,
-    flingVelocity = 300,
+    flingVelocity = 500,
   }: Props,
   ref: React.ForwardedRef<RSVPImperativeApi>
 ) {

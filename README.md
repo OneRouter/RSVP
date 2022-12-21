@@ -49,15 +49,7 @@ export type Props = {
   animationConfig?: Partial<WithSpringConfig>;
   flingVelocity?: number;
 };
-export type ImperativeApiOptions = {
-  animated?: boolean;
-};
-
-export type RSVPImperativeApi = {
-  setPage: (index: number, options: ImperativeApiOptions) => void;
-  incrementPage: (options: ImperativeApiOptions) => void;
-  decrementPage: (options: ImperativeApiOptions) => void;
-};
+ 
 ```
 
 | Name               | Type                     | Description                                     |
