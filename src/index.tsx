@@ -29,6 +29,7 @@ import type {
 import type { WithSpringConfig } from "react-native-reanimated";
 
 type PageProps = {
+  item: any;
   index: number;
   focusAnim: Animated.DerivedValue<number>;
   isActive: boolean;
@@ -175,20 +176,16 @@ function RSVP(
     }),
     [setPage]
   );
-  const pageBufferArray =
-    // wrapAround ? [...Array(pageBuffer * 2 + 1)] : // TODO: Fix wrapAround animation
-    [
-      ...Array(
-        (curIndex - pageBuffer > minIndex ? pageBuffer : curIndex - minIndex) +
-          1 +
-          (curIndex + pageBuffer < maxIndex ? pageBuffer : maxIndex - curIndex)
-      ),
-    ];
-  const pageIndices = pageBufferArray.map((_, i) => {
-    const bufferIndex = curIndex < maxIndex ? i - 1 : i;
-    return curIndex - bufferIndex;
-  });
-
+  const pageBufferArray = data.filter(
+    (item, index) =>
+      // (wrapAround && ...) ||
+      (index >= minIndex &&
+        index >= curIndex - pageBuffer &&
+        index < curIndex) ||
+      index === curIndex ||
+      (index <= maxIndex && index <= curIndex + pageBuffer && index > curIndex)
+    // || (wrapAround &&...)
+  );
   useDerivedValue(() => {
     if (pageSize.value) {
       pageAnim.value = (translate.value / pageSize.value) * -1;
@@ -253,7 +250,6 @@ function RSVP(
       DEFAULT_ANIMATION_CONFIG,
       animCfgRef.current
     );
-
     translate.value = withSpring(-page * pageSize.value, animCfg);
   };
   const panGesture = Gesture.Pan()
@@ -277,22 +273,25 @@ function RSVP(
           pageHeight.value = layout.height;
         }}
       >
-        {pageIndices.map((pageIndex) => {
+        {data.map((item, pageIndex) => {
           return (
-            <PageWrapper
-              key={`page-provider-wrapper-${pageIndex}`}
-              vertical={vertical}
-              pageAnim={pageAnim}
-              index={pageIndex}
-              enableFreeze={enableFreeze}
-              pageWidth={pageWidth}
-              pageHeight={pageHeight}
-              isActive={pageIndex === curIndex}
-              renderItem={renderItem}
-              style={pageWrapperStyle}
-              slideRef={slideRef}
-              pageBuffer={pageBuffer}
-            />
+            pageBufferArray.includes(item) && (
+              <PageWrapper
+                key={`page-provider-wrapper-${pageIndex}`}
+                vertical={vertical}
+                pageAnim={pageAnim}
+                item={item}
+                index={pageIndex}
+                enableFreeze={enableFreeze}
+                pageWidth={pageWidth}
+                pageHeight={pageHeight}
+                isActive={pageIndex === curIndex}
+                renderItem={renderItem}
+                style={pageWrapperStyle}
+                slideRef={slideRef}
+                pageBuffer={pageBuffer}
+              />
+            )
           );
         })}
       </Animated.View>
@@ -305,6 +304,7 @@ export default React.memo(React.forwardRef(RSVP));
 type PageWrapperProps = {
   vertical: boolean;
   pageAnim: Animated.SharedValue<number>;
+  item: any;
   index: number;
   enableFreeze: boolean;
   pageWidth: Animated.SharedValue<number>;
@@ -328,6 +328,7 @@ export type PageInterpolatorParams = {
 
 const PageWrapper = React.memo(
   ({
+    item,
     index,
     enableFreeze,
     pageAnim,
@@ -393,6 +394,7 @@ const PageWrapper = React.memo(
       >
         <Freeze freeze={enableFreeze && !isActive}>
           {renderItem?.({
+            item,
             index,
             isActive,
             focusAnim,
