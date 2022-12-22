@@ -12,7 +12,10 @@ Fully native interactions powered by [Reanimated 2](https://github.com/software-
 
 ## Install
 
-1. Follow installation instructions for [reanimated](https://github.com/kmagiera/react-native-reanimated) and [react-native-gesture-handler](https://github.com/kmagiera/react-native-gesture-handler)
+1. Follow installation instructions for [Reanimated](https://github.com/kmagiera/react-native-reanimated), [React Native Gesture Handler](https://github.com/kmagiera/react-native-gesture-handler), and [React Freeze](https://github.com/software-mansion/react-freeze)
+   - `npm install` or `yarn add` `react-native-reanimated react-native-gesture-handler react-freeze`
+   - Add `"react-native-reanimated/plugin"` as the last entry of your `babel.config.js` `plugins` array.
+   - Wrap your App in `GestureHandlerRootView`
 2. `npm install` or `yarn add` `@onerouter/rsvp`
 3. `import RSVP from '@onerouter/rsvp'`
 
@@ -20,6 +23,7 @@ Fully native interactions powered by [Reanimated 2](https://github.com/software-
 
 ```typescript
 type PageProps = {
+  item: any;
   index: number;
   focusAnim: Animated.DerivedValue<number>;
   isActive: boolean;
