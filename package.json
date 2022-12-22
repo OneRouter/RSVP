@@ -1,6 +1,6 @@
 {
   "name": "@onerouter/rsvp",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Reanimated Swipeable ViewPager. Renders limited by buffer and React Freeze",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
