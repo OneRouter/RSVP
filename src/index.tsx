@@ -175,17 +175,16 @@ function RSVP(
     }),
     [setPage]
   );
-  const indexArray =
-    curIndex > minIndex && curIndex < maxIndex
-      ? [curIndex - 1, curIndex, curIndex + 1]
-      : curIndex === minIndex
-      ? // ? !wrapAround // TODO: Fix wrapAround animation
-        [curIndex, curIndex + 1]
-      : // : [maxIndex, curIndex, curIndex + 1]
-        // : wrapAround
-        // ? [curIndex - 1, curIndex, minIndex]
-        [curIndex - 1, curIndex];
-  const pageIndices = indexArray.map((_, i) => {
+  const pageBufferArray =
+    // wrapAround ? [...Array(pageBuffer * 2 + 1)] : // TODO: Fix wrapAround animation
+    [
+      ...Array(
+        (curIndex - pageBuffer > minIndex ? pageBuffer : curIndex - minIndex) +
+          1 +
+          (curIndex + pageBuffer < maxIndex ? pageBuffer : maxIndex - curIndex)
+      ),
+    ];
+  const pageIndices = pageBufferArray.map((_, i) => {
     const bufferIndex = curIndex < maxIndex ? i - 1 : i;
     return curIndex - bufferIndex;
   });
